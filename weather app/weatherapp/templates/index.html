@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Monitoring Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .dark-mode {
+            background-color: #121212;
+            color: white;
+        }
+
+        .dark-mode .card,
+        .dark-mode .forecast-item,
+        .dark-mode .table {
+            background-color: #1e1e1e;
+            color: white;
+        }
+
+        .dark-mode .btn,
+        .dark-mode input {
+            background-color: #3a3a3a;
+            color: white;
+        }
+
+        .dark-mode .alert {
+            background-color: #e57373;
+        }
+
+        .alert {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f44336;
+            color: white;
+            display: none;
+        }
+
+        #forecast-container {
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .forecast-item {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        /* Chart styling */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Animation */
+        .pulse {
+            animation: pulse-animation 1s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="text-center">Weather Monitoring Dashboard</h1>
+
+        <div class="text-end mb-3">
+            <button class="btn btn-secondary" onclick="toggleTheme()">Toggle Theme</button>
+            <button class="btn btn-primary" onclick="toggleUnit()">Toggle °C/°F</button>
+        </div>
+
+        <!-- Dropdown for metro cities -->
+        <div class="mb-3">
+            <select id="metro-city-dropdown" class="form-select" onchange="loadCityFromDropdown()">
+                <option value="" selected disabled>Select a Metro City</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Bangalore">Bangalore</option>
+                <option value="Chennai">Chennai</option>
+                <option value="Kolkata">Kolkata</option>
+                <option value="Hyderabad">Hyderabad</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <input type="text" id="city-search" class="form-control" placeholder="Enter city name">
+            <button class="btn btn-primary mt-2" onclick="searchCity()">Search City</button>
+        </div>
+
+        <div class="alert" id="alert-box"></div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 id="city-name">N/A</h2>
+                <p id="current-date-time">N/A</p>
+                <p id="weather-description">N/A</p>
+                <h3 id="city-temperature">N/A</h3>
+                <p>Humidity: <span id="city-humidity">N/A</span></p>
+                <p>Wind Speed: <span id="city-wind">N/A</span></p>
+                <p>Pressure: <span id="city-pressure">N/A</span></p>
+            </div>
+        </div>
+
+        <h3>Set Alert Threshold</h3>
+        <div class="mb-3">
+            <label for="temp-threshold" class="form-label">Temperature Threshold (°C):</label>
+            <input type="number" id="temp-threshold" class="form-control"
+                placeholder="Enter max temperature (e.g., 30)">
+            <button class="btn btn-warning mt-2" onclick="setThreshold()">Set Threshold</button>
+        </div>
+
+        <h3>5-Day Forecast</h3>
+        <div id="forecast-container"></div>
+
+        <h3>Temperature Bar Chart</h3>
+        <div class="chart-container">
+            <canvas id="weatherBarChart"></canvas>
+        </div>
+
+        <h3>Temperature Trend Chart</h3>
+        <div class="chart-container">
+            <canvas id="weatherTrendChart"></canvas>
+        </div>
+
+        <h3>Dynamic City Temperature Chart</h3>
+        <div class="chart-container">
+            <canvas id="dynamicTempChart"></canvas>
+        </div>
+
+        <!-- Pie chart for weather conditions -->
+        <h3>Weather Conditions Distribution</h3>
+        <div class="chart-container">
+            <canvas id="weatherPieChart"></canvas>
+        </div>
+
+        <h3>Daily Summaries</h3>
+        <table class="table table-bordered" id="daily-summaries-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Temperature</th>
+                    <th>Min Temperature</th>
+                    <th>Max Temperature</th>
+                    <th>Average Temperature</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <button class="btn btn-success" onclick="downloadCSV()">Download Data as CSV</button>
+        <button class="btn btn-danger" onclick="sendAlert()">Send Alert to Email and WhatsApp</button>
+    </div>
+
+    <footer>
+        Weather Dashboard &copy; 2024. All Rights Reserved.
+    </footer>
+
+    <script>
+        const apiKey = "28ca9fb7cc71157af08c49fedd48aa94";
+        let currentUnit = "metric";
+        let userTempThreshold = null;
+        let temperatureData = [];
+        let labels = [];
+        let dynamicTempData = [];
+        let dynamicLabels = [];
+        let conditionData = []; // Pie chart data for weather conditions
+        let conditionLabels = []; // Pie chart labels
+
+        let weatherBarChart;
+        let weatherTrendChart;
+        let dynamicTempChart;
+        let weatherPieChart;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadCityData('Delhi');
+            updateDateTime();
+        });
+
+        function toggleTheme() {
+            document.body.classList.toggle("dark-mode");
+        }
+
+        function toggleUnit() {
+            currentUnit = currentUnit === "metric" ? "imperial" : "metric";
+            const cityName = document.getElementById("city-name").textContent;
+            if (cityName !== 'N/A') {
+                loadCityData(cityName);
+            }
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
+            document.getElementById("current-date-time").textContent = now.toLocaleDateString(undefined, options);
+        }
+
+        function loadCityFromDropdown() {
+            const selectedCity = document.getElementById("metro-city-dropdown").value;
+            if (selectedCity) {
+                loadCityData(selectedCity);
+            }
+        }
+
+        function searchCity() {
+            const cityInput = document.getElementById("city-search").value;
+            if (cityInput) {
+                loadCityData(cityInput);
+            }
+        }
+
+        function loadCityData(city) {
+            fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=${currentUnit}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("city-name").textContent = data.name;
+                    document.getElementById("city-temperature").textContent = data.main.temp + (currentUnit === "metric" ? " °C" : " °F");
+                    document.getElementById("city-humidity").textContent = data.main.humidity + "%";
+                    document.getElementById("city-wind").textContent = data.wind.speed + (currentUnit === "metric" ? " m/s" : " mph");
+                    document.getElementById("city-pressure").textContent = data.main.pressure + " hPa";
+                    document.getElementById("weather-description").textContent = data.weather[0].description;
+
+                    // Update pie chart data for weather conditions
+                    updateWeatherConditionData(data.weather[0].description);
+
+                    // Dynamic temperature update simulation
+                    updateDynamicChart(data.main.temp, data.name);
+
+                    // Fetch the 5-day forecast data
+                    fetchForecast(city);
+                })
+                .catch(err => console.error(err));
+        }
+
+        function fetchForecast(city) {
+            fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=${currentUnit}`)
+                .then(response => response.json())
+                .then(data => {
+                    const forecastContainer = document.getElementById("forecast-container");
+                    forecastContainer.innerHTML = "";
+                    temperatureData = [];
+                    labels = [];
+
+                    data.list.forEach((item, index) => {
+                        if (index % 8 === 0) { // Assuming data is in 3-hour intervals, we pick every 8th item (1 per day)
+                            const date = new Date(item.dt * 1000);
+                            const day = date.toLocaleDateString(undefined, { weekday: 'long' });
+                            const temp = item.main.temp;
+                            const icon = `https://openweathermap.org/img/wn/${item.weather[0].icon}.png`;
+                            const description = item.weather[0].description;
+
+                            // Populate the forecast cards
+                            const forecastItem = document.createElement("div");
+                            forecastItem.className = "forecast-item";
+                            forecastItem.innerHTML = `<h4>${day}</h4>
+                                                      <img src="${icon}" alt="${description}">
+                                                      <p>${temp} ${currentUnit === "metric" ? "°C" : "°F"}</p>`;
+                            forecastContainer.appendChild(forecastItem);
+
+                            // Collect data for the bar chart and trend chart
+                            labels.push(day);
+                            temperatureData.push(temp);
+                        }
+                    });
+
+                    // Update the charts
+                    updateWeatherBarChart();
+                    updateWeatherTrendChart();
+
+                    // Populate the daily summaries table
+                    populateDailySummaries(data.list);
+                })
+                .catch(err => console.error(err));
+        }
+
+        function populateDailySummaries(data) {
+            const tableBody = document.querySelector("#daily-summaries-table tbody");
+            tableBody.innerHTML = "";
+
+            // Create a map to hold summaries per day
+            const dailySummaries = {};
+
+            data.forEach(item => {
+                const date = new Date(item.dt * 1000).toLocaleDateString();
+
+                if (!dailySummaries[date]) {
+                    dailySummaries[date] = {
+                        tempSum: 0,
+                        tempMin: item.main.temp,
+                        tempMax: item.main.temp,
+                        count: 0,
+                        description: item.weather[0].description
+                    };
+                }
+
+                const daySummary = dailySummaries[date];
+                daySummary.tempSum += item.main.temp;
+                daySummary.count++;
+                daySummary.tempMin = Math.min(daySummary.tempMin, item.main.temp);
+                daySummary.tempMax = Math.max(daySummary.tempMax, item.main.temp);
+            });
+
+            // Iterate over the collected data to create table rows
+            Object.entries(dailySummaries).forEach(([date, summary]) => {
+                const avgTemp = (summary.tempSum / summary.count).toFixed(2);
+                const row = `<tr>
+                                <td>${date}</td>
+                                <td>${avgTemp} ${currentUnit === "metric" ? "°C" : "°F"}</td>
+                                <td>${summary.tempMin} ${currentUnit === "metric" ? "°C" : "°F"}</td>
+                                <td>${summary.tempMax} ${currentUnit === "metric" ? "°C" : "°F"}</td>
+                                <td>${avgTemp} ${currentUnit === "metric" ? "°C" : "°F"}</td>
+                                <td>${summary.description}</td>
+                            </tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        function setThreshold() {
+            const threshold = document.getElementById("temp-threshold").value;
+            userTempThreshold = parseFloat(threshold);
+            alert(`Temperature threshold set to ${userTempThreshold} °C.`);
+        }
+
+        function updateWeatherConditionData(description) {
+            if (conditionLabels.includes(description)) {
+                const index = conditionLabels.indexOf(description);
+                conditionData[index]++;
+            } else {
+                conditionLabels.push(description);
+                conditionData.push(1);
+            }
+            updateWeatherPieChart();
+        }
+
+        function updateWeatherBarChart() {
+            if (weatherBarChart) {
+                weatherBarChart.destroy();
+            }
+            const ctx = document.getElementById("weatherBarChart").getContext("2d");
+            weatherBarChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature',
+                        data: temperatureData,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                }
+            });
+        }
+
+        function updateWeatherTrendChart() {
+            if (weatherTrendChart) {
+                weatherTrendChart.destroy();
+            }
+            const ctx = document.getElementById("weatherTrendChart").getContext("2d");
+            weatherTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature',
+                        data: temperatureData,
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                }
+            });
+        }
+
+        function updateWeatherPieChart() {
+            if (weatherPieChart) {
+                weatherPieChart.destroy();
+            }
+            const ctx = document.getElementById("weatherPieChart").getContext("2d");
+            weatherPieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: conditionLabels,
+                    datasets: [{
+                        label: 'Weather Conditions',
+                        data: conditionData,
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+                    }]
+                }
+            });
+        }
+
+        function updateDynamicChart(temp, cityName) {
+            if (dynamicLabels.length >= 10) {
+                dynamicLabels.shift();
+                dynamicTempData.shift();
+            }
+            dynamicLabels.push(cityName);
+            dynamicTempData.push(temp);
+
+            if (dynamicTempChart) {
+                dynamicTempChart.destroy();
+            }
+            const ctx = document.getElementById("dynamicTempChart").getContext("2d");
+            dynamicTempChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dynamicLabels,
+                    datasets: [{
+                        label: 'Temperature',
+                        data: dynamicTempData,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        fill: false
+                    }]
+                }
+            });
+        }
+
+        function downloadCSV() {
+            let csv = "Date,Temperature,Min Temperature,Max Temperature,Average Temperature,Description\n";
+            const rows = document.querySelectorAll("#daily-summaries-table tbody tr");
+
+            rows.forEach(row => {
+                const cols = row.querySelectorAll("td");
+                const rowData = Array.from(cols).map(col => col.textContent).join(",");
+                csv += rowData + "\n";
+            });
+
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "weather-data.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function sendAlert() {
+            if (!userTempThreshold) {
+                alert("Please set a temperature threshold first.");
+                return;
+            }
+            const temperature = parseFloat(document.getElementById("city-temperature").textContent);
+            if (temperature >= userTempThreshold) {
+                const alertBox = document.getElementById("alert-box");
+                alertBox.textContent = `Alert: Temperature has reached ${temperature} °C.`;
+                alertBox.style.display = "block";
+            }
+        }
+    </script>
+</body>
+
+</html>
+

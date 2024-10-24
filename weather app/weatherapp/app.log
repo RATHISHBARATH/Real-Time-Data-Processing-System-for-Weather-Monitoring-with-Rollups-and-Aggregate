@@ -1,0 +1,22 @@
+2024-10-23 06:29:07,382 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-10-23 06:29:07,382 [33mPress CTRL+C to quit[0m
+2024-10-23 06:29:07,382  * Restarting with stat
+2024-10-23 06:29:07,530 Error saving data to database: Failed getting connection; pool exhausted
+2024-10-23 06:29:07,959  * Debugger is active!
+2024-10-23 06:29:07,961  * Debugger PIN: 429-968-159
+2024-10-23 06:29:07,975 127.0.0.1 - - [23/Oct/2024 06:29:07] "GET / HTTP/1.1" 200 -
+2024-10-23 06:29:08,016 Error fetching daily summary: 1055 (42000): Expression #6 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'weather_data.w1.timestamp' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+2024-10-23 06:29:08,017 127.0.0.1 - - [23/Oct/2024 06:29:08] "GET /data HTTP/1.1" 200 -
+2024-10-23 06:29:24,190  * Detected change in 'E:\\weather app\\weatherapp\\app.py', reloading
+2024-10-23 06:29:24,234  * Restarting with stat
+2024-10-23 06:30:06,563 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-10-23 06:30:06,563 [33mPress CTRL+C to quit[0m
+2024-10-23 06:30:06,564  * Restarting with stat
+2024-10-23 06:30:07,076  * Debugger is active!
+2024-10-23 06:30:07,077  * Debugger PIN: 429-968-159
+2024-10-23 06:30:20,268  * Detected change in 'E:\\weather app\\weatherapp\\app.py', reloading
+2024-10-23 06:30:20,324  * Restarting with stat
+2024-10-23 06:35:06,833 Error saving data to database: Failed getting connection; pool exhausted
+2024-10-23 06:45:06,649 Error saving data to database: Failed getting connection; pool exhausted
